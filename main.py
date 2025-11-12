@@ -3,7 +3,6 @@
 
 Use time clock data in csv to calculate estimate next payout
 '''
-from operator import ifloordiv
 
 import pandas as pd
 import os
@@ -16,7 +15,7 @@ if __name__ == '__main__':
 
     neededHours = 520
 
-    device = "computer"
+    device = "iPhone"
     #print(sys.argv)    # debug iPhone
 
     # file directories
