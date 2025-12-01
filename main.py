@@ -35,7 +35,7 @@ if __name__ == '__main__':
     
     employer_dir = 'skillstorm'
     
-    file_name = 'timeclocks 2'
+    file_name = 'timeclocks'
     
     file_extension = '.csv'
     
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     # time variables
     date_delim = '.'
     present = dt.datetime.now()
-    today = str(present.strftime('%y')) + date_delim + str(present.month) + date_delim + str(present.day)
+    today = str(present.strftime('%y')) + date_delim + (str(present.month) if present.month >= 10 else '0' + str(present.month)) + date_delim + (str(present.day) if present.day >= 10 else '0' + str(present.day))
 
     def daysAgo(numOfDays):
         date_of_day = str(present - dt.timedelta(days=numOfDays)).split('-')
@@ -125,15 +125,15 @@ if __name__ == '__main__':
             df = data.iloc[rows]    # store current row in df
 
             times = [df['clocked_in'], df['lunch_in'], df['lunch_out'], df['clocked_out']]
-            timeclock['date'] = [null_val, null_val, null_val, null_val]
+            timeclock[df['date']] = [null_val, null_val, null_val, null_val]
 
             for  i in range (data.shape[1] - 2):
-                timeclock['date'][i] = str(times[i]) if not pd.isna(times[i]) else null_val
-                print(timeclock['date'][i])
+                timeclock[df['date']][i] = str(times[i]) if not pd.isna(times[i]) else null_val
+                #print(timeclock['date'][i])
 
 
         def checkPunch(punch):
-            if data.iloc[0][punch] != null_val:
+            if timeclock[today][punch - 1] != null_val:
                 return True
             else:
                 return False
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         if action == 'ci':      # clock in
 
             # if clocked in == null
-            if not checkPunch('clocked_in'):
+            if not checkPunch(1):
                 clockIn()
                 printDelim()
                 message = "[Welcome message]"
@@ -152,29 +152,29 @@ if __name__ == '__main__':
             notify(message)
 
         elif action == 'li':    # begin lunch
-            if checkPunch('clocked_in') and not checkPunch('lunch_in'):
+            if checkPunch(1) and not checkPunch(2):
                 clockPunch()
                 printDelim()
                 message = "Hungry?"
-            elif not checkPunch('clocked_in'):
+            elif not checkPunch(1):
                 message = "You're not even on the clock..."
-            elif checkPunch('lunch_in'):
-                message = "Eating began at " + str(data.iloc[0]['lunch_in']) + ", remember?"
+            elif checkPunch(2):
+                message = "Eating began at " + str(timeclock[today][1]) + ", remember?"
             else:
                 message = "[Error slipping out to lunch]"
 
             notify(message)
 
         elif action == 'lo':    # end lunch
-            if checkPunch('clocked_in') and checkPunch('lunch_in') and not checkPunch('lunch_out'):
+            if checkPunch(1) and checkPunch(2) and not checkPunch(3):
                 clockPunch()
                 printDelim()
                 message = "The developing continues :)"
-            elif not checkPunch('clocked_in'):
+            elif not checkPunch(1):
                 message = "You're not even on the clock..."
-            elif not checkPunch('lunch_in'):
+            elif not checkPunch(2):
                 message = "You must begin your lunch to end your lunch."
-            elif checkPunch('lunch_out'):
+            elif checkPunch(3):
                 message = "Lunch can't end twice. Focus up on the project."
             else:
                 message = "[Error lunch not ended]"
@@ -182,16 +182,16 @@ if __name__ == '__main__':
             notify(message)
             
         elif action == 'co':    # clock out
-            if checkPunch('clocked_in') and checkPunch('lunch_in') and checkPunch('lunch_out') and not checkPunch('clocked_out'):
+            if checkPunch(1) and checkPunch(2) and checkPunch(3) and not checkPunch(4):
                 clockPunch()
                 message = "Nice work. Let's develop some more tomorrow!"
-            elif not checkPunch('clocked_in'):
+            elif not checkPunch(1):
                 message = "You're not even on the clock..."
-            elif not checkPunch('lunch_in'):
+            elif not checkPunch(2):
                 message = "You must being your lunch to end your lunch."
-            elif not checkPunch('lunch_out'):
+            elif not checkPunch(3):
                 message = "End your lunch first"
-            elif checkPunch('clocked_out'):
+            elif checkPunch(4):
                 message = "You're already off the clock. Seems you're tired, rest up."
             else:
                 message = "Aw, great. You broke something."
