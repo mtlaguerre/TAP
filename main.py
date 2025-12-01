@@ -88,16 +88,7 @@ if __name__ == '__main__':
     weeks = []
     curr_week = 0
         
-    # define clock in
-    def clockIn():
-        
-        # open file in append mode
-        with open(path, 'a') as file:
-            
-            # clock in
-            file.write(f"\"{today}\"{file_delim}\'{weekdays[present.weekday()]}\'{file_delim}{hour}{minute}")
-    
-    # define clock out
+    # define clock punches
     def clockPunch():
         
         # open file in append mode
@@ -105,11 +96,11 @@ if __name__ == '__main__':
             # write current hour & minute
             file.write(f"{hour}{minute}")
         
-    def printDelim():
+    def printChar(char):
         
         # open file in append mode
         with open(path, 'a') as file:
-            file.write(file_delim)  # write delimiter character
+            file.write(char)  # write character
         
     # prompt
     action = input("Clock in(ci), Lunch in(li), Lunch out(lo), Clock out(co), Info(i), Pay(p): ")
@@ -137,64 +128,99 @@ if __name__ == '__main__':
                 return True
             else:
                 return False
+        
+        # declare constant missing clock in message
+        MISSING_CI_MSG = "You're not even on the clock..."
+        MISSING_LI_MSG = "You must begin your lunch to end your lunch."
+        MISSING_LO_MSG = "End your lunch first."
+        #MISSING_CO_MSG = "You haven't ended your previous shift."
 
+        # declare constant clock in messages (indicators/notifications)
+        CI_SUCCESS_MSG = "[Welcome message]"
+        CI_EXISTS_MSG = "[Duplicate clock in message]"
+        CI_GENERIC_MSG = "Clock in failed to unknown reasons. Investigate."
 
+        # declare constant lunch in messages
+        LI_SUCCESS_MSG = "[Lunch in success messge]"
+        LI_EXISTS_MSG = "Today's lunch was at " + str(timeclock[today][1]) + ", remember?"
+        LI_GENERIC_MSG = "Lunch in failed to unknown reasons. Investigate."
+
+        # declare constant lunch out messages
+        LO_SUCCESS_MSG = "The developing continues :)"
+        LO_EXISTS_MSG = "Lunch can't end twice. Focus up on the project."
+        LO_GENERIC_MSG = "Lunch out failed to unknown reasons. Investigate."
+
+        # declare constant clock out messages
+        CO_SUCCESS_MSG = "Nice work. Let's develop some more tomorrow!"
+        CO_EXISTS_MSG = "You're already off the clock. Seems you're tired, rest up."
+        CO_GENERIC_MSG = "Clock out failed to unknown reasons. Investigate."
+        
         if action == 'ci':      # clock in
 
             # if clocked in == null
-            if not checkPunch(1):
-                clockIn()
-                printDelim()
-                message = "[Welcome message]"
+            if not checkPunch(1):   # if not clocked in
+
+                # open file in append mode
+                with open(path, 'a') as file:
+                     
+                    # clock in
+                    file.write(f"\"{today}\"{file_delim}\'{weekdays[present.weekday()]}\'{file_delim}{hour}{minute}")
+
+                clockPunch()
+                printChar(file_delim)
+                message = CI_SUCCESS_MSG
+            elif checkPunch(1):     # if clocked in (maybe check if clocked out of last shift?)
+                message = CI_EXISTS_MSG
             else:
-                message = "[Clock In failed message]"
+                message = CI_GENERIC_MSG
 
             notify(message)
 
         elif action == 'li':    # begin lunch
-            if checkPunch(1) and not checkPunch(2):
+            if checkPunch(1) and not checkPunch(2): # if clocked in and lunch not began
                 clockPunch()
-                printDelim()
-                message = "Hungry?"
-            elif not checkPunch(1):
-                message = "You're not even on the clock..."
-            elif checkPunch(2):
-                message = "Eating began at " + str(timeclock[today][1]) + ", remember?"
-            else:
-                message = "[Error slipping out to lunch]"
+                printChar(file_delim)
+                message = LI_SUCCESS_MSG 
+            elif not checkPunch(1) or checkPunch(4): # if not clocked in or already clocked out
+                message = MISSING_CI_MSG
+            elif checkPunch(2):         # if already began lunch
+                message = LI_EXISTS_MSG
+            else:                       # any uncovered fail
+                message = LI_GENERIC_MSG
 
             notify(message)
 
         elif action == 'lo':    # end lunch
-            if checkPunch(1) and checkPunch(2) and not checkPunch(3):
+            if checkPunch(1) and checkPunch(2) and not checkPunch(3):   # if clocked in and lunch began and lunch not ended
                 clockPunch()
-                printDelim()
-                message = "The developing continues :)"
-            elif not checkPunch(1):
-                message = "You're not even on the clock..."
-            elif not checkPunch(2):
-                message = "You must begin your lunch to end your lunch."
-            elif checkPunch(3):
-                message = "Lunch can't end twice. Focus up on the project."
-            else:
-                message = "[Error lunch not ended]"
+                printChar(file_delim)
+                message = LO_SUCCESS_MSG
+            elif not checkPunch(1):     # if not clocked in
+                message = MISSING_CI_MSG 
+            elif not checkPunch(2):     # if lunch not began
+                message = MISSING_LI_MSG
+            elif checkPunch(3):         # if already ended lunch
+                message = LO_EXISTS_MSG
+            else:                       # any uncovered fail
+                message = LO_GENERIC_MSG
 
             notify(message)
             
         elif action == 'co':    # clock out
-            if checkPunch(1) and checkPunch(2) and checkPunch(3) and not checkPunch(4):
+            if checkPunch(1) and checkPunch(2) and checkPunch(3) and not checkPunch(4):     # if clocked in and began lunch and ended lunch and not clocked out
                 clockPunch()
-                message = "Nice work. Let's develop some more tomorrow!"
-            elif not checkPunch(1):
-                message = "You're not even on the clock..."
-            elif not checkPunch(2):
-                message = "You must being your lunch to end your lunch."
-            elif not checkPunch(3):
-                message = "End your lunch first"
-            elif checkPunch(4):
-                message = "You're already off the clock. Seems you're tired, rest up."
-            else:
-                message = "Aw, great. You broke something."
+                printChar('\n')
+                message = CO_SUCCESS_MSG
+            elif not checkPunch(1):     # if not clocked in
+                message = MISSING_CI_MSG
+            elif not checkPunch(2):     # if lunch not began
+                message = MISSING_LI_MSG
+            elif not checkPunch(3):     # if lunch not ended
+                message = MISSING_LO_MSG
+            elif checkPunch(4):         # if already clocked out
+                message = CO_EXISTS_MSG
+            else:                       # any uncovered fail
+                message = CO_GENERIC_MSG 
 
             notify(message)
 
