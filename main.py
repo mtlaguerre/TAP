@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 file.truncate()         # remove the newline
 
             # write current hour & minute
-            file.write(f"{hour}{minute}".encode('utf-8'))
+            file.write(f"{hour}{minute}".encode('utf-8'))   # convert text to byte code then write to file
         
     def printChar(char):
         
@@ -125,14 +125,13 @@ if __name__ == '__main__':
 
             df = data.iloc[rows]    # store current row in df
 
-            times = [df['clocked_in'], df['lunch_in'], df['lunch_out'], df['clocked_out']]
-            timeclock[df['date']] = [null_val, null_val, null_val, null_val]
+            times = [df['clocked_in'], df['lunch_in'], df['lunch_out'], df['clocked_out']]      # array of the 4 clock punches (clock in, lunch in, lunch out, clock out) relating to selected date
+            timeclock[df['date']] = [null_val, null_val, null_val, null_val]                    # temp fill today with empty (in case, not in timeclock)
 
             for  i in range (data.shape[1] - 2):
-                timeclock[df['date']][i] = str(times[i]) if not pd.isna(times[i]) else null_val
-                #print(timeclock['date'][i])
+                timeclock[df['date']][i] = str(times[i]) if not pd.isna(times[i]) else null_val # update timeclock dictionary with date as key and store 4 clock punches in an array as the value
 
-        # if today not in timeclock
+        # if today's date not in timeclock
         if today not in timeclock:
             timeclock[today] = [null_val, null_val, null_val, null_val]
 
