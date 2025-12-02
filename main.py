@@ -55,7 +55,7 @@ if __name__ == '__main__':
             os.makedirs(os.path.join(parent_dir, directory_name), exist_ok=True)
             
             with open(f"{directory_name}{dir_delim}{file_full}", 'x', encoding='utf-8') as file:    # x mode safely creates new file, abort if already exists
-                file.write("data,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
+                file.write("date,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
 
         except FileExistsError:
             pass
