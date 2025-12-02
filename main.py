@@ -36,7 +36,7 @@ if __name__ == '__main__':
     
     employer_dir = 'skillstorm'
     
-    file_name = 'testclocks'
+    file_name = 'timeclocks'
     
     file_extension = '.csv'
     
@@ -94,10 +94,17 @@ if __name__ == '__main__':
     # define clock punches
     def clockPunch():
         
-        # open file in append mode
-        with open(path, 'a') as file:
+        # open file in read-write binary mode
+        with open(path, 'r+b') as file:
+
+            file.seek(-1, 2)            # seek to the last byte
+
+            if file.read(1) == b'\n':
+                file.seek(-1, 2)        # go back one byte
+                file.truncate()         # remove the newline
+
             # write current hour & minute
-            file.write(f"{hour}{minute}")
+            file.write(f"{hour}{minute}".encode('utf-8'))
         
     def printChar(char):
         
