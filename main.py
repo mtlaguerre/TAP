@@ -12,8 +12,9 @@ import datetime as dt
 if __name__ == '__main__':
     
     # if mobile, enable notifications
-    is_mobile = 'iOS' or 'iPadOS' or 'Android'  # mobile systems    
-    if platform.system() == is_mobile:
+    mobile = ['iOS', 'iPadOS', 'Android']  # mobile systems    
+    if platform.system() in mobile:
+        import sys
         import notifications
         
         dir_delim = '/'
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     
     employer_dir = 'skillstorm'
     
-    file_name = 'timeclocks'
+    file_name = 'testclocks'
     
     file_extension = '.csv'
     
@@ -51,15 +52,19 @@ if __name__ == '__main__':
     # if path doesn't exists, create it    
     if not os.path.exists(path):
         try:
-            os.makedirs(f"{directory_name}", exist_ok=True)
-            # print(f"Directory '{directory_name}' created successfully.")
+            os.makedirs(os.path.join(parent_dir, directory_name), exist_ok=True)
+            
+            with open(f"{directory_name}{dir_delim}{file_full}", 'x', encoding='utf-8') as file:    # x mode safely creates new file, abort if already exists
+                file.write("data,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
+
+        except FileExistsError:
+            pass
+
         except PermissionError:
             notify(f"Permission denied: Unable to create '{directory_name}'.")
+
         except Exception as e:
             notify(f"An error occured: {e}")
-        finally:
-            with open(f"{directory_name}{dir_delim}{file_full}", 'x', encoding='utf-8') as file:   # x mode safely creates new file, abort if already exists
-                file.write("date,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
 
     # section csv data using pandas
     data = pd.read_csv(path)
@@ -103,7 +108,7 @@ if __name__ == '__main__':
             file.write(char)  # write character
         
     # prompt
-    action = input("Clock in(ci), Lunch in(li), Lunch out(lo), Clock out(co), Info(i), Pay(p): ")
+    action = input("Clock in(ci), Lunch in(li), Lunch out(lo), Clock out(co), Info(i), Pay(p): ") if platform.system() not in mobile else sys.argv[1]
 
     if action == "ci" or action == "li" or action == "lo" or action == "co" or action == "i" or action == "p":
 
@@ -122,6 +127,9 @@ if __name__ == '__main__':
                 timeclock[df['date']][i] = str(times[i]) if not pd.isna(times[i]) else null_val
                 #print(timeclock['date'][i])
 
+        # if today not in timeclock
+        if today not in timeclock:
+            timeclock[today] = [null_val, null_val, null_val, null_val]
 
         def checkPunch(punch):
             if timeclock[today][punch - 1] != null_val:
@@ -163,8 +171,8 @@ if __name__ == '__main__':
                 # open file in append mode
                 with open(path, 'a') as file:
                      
-                    # clock in
-                    file.write(f"\"{today}\"{file_delim}\'{weekdays[present.weekday()]}\'{file_delim}{hour}{minute}")
+                    # add new day info
+                    file.write(f"\"{today}\"{file_delim}\'{weekdays[present.weekday()]}\'{file_delim}")
 
                 clockPunch()
                 printChar(file_delim)
@@ -244,6 +252,3 @@ if __name__ == '__main__':
     else:
         # handle error message
         notify("Yup, you messed something up buddy.")
-
-    
-        
