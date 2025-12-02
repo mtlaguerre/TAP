@@ -48,23 +48,21 @@ if __name__ == '__main__':
     path = os.path.join(parent_dir, data_dir, employer_dir, file_full)
 
     directory_name = f"{data_dir}{dir_delim}{employer_dir}"
+    
+    try:
+        os.makedirs(os.path.join(parent_dir, directory_name), exist_ok=True)
+        
+        with open(f"{directory_name}{dir_delim}{file_full}", 'x', encoding='utf-8') as file:    # x mode safely creates new file, abort if already exists
+            file.write("date,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
 
-    # if path doesn't exists, create it    
-    if not os.path.exists(path):
-        try:
-            os.makedirs(os.path.join(parent_dir, directory_name), exist_ok=True)
-            
-            with open(f"{directory_name}{dir_delim}{file_full}", 'x', encoding='utf-8') as file:    # x mode safely creates new file, abort if already exists
-                file.write("date,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
+    except FileExistsError:
+        pass
 
-        except FileExistsError:
-            pass
+    except PermissionError:
+        notify(f"Permission denied: Unable to create '{directory_name}'.")
 
-        except PermissionError:
-            notify(f"Permission denied: Unable to create '{directory_name}'.")
-
-        except Exception as e:
-            notify(f"An error occured: {e}")
+    except Exception as e:
+        notify(f"An error occured: {e}")
 
     # section csv data using pandas
     data = pd.read_csv(path)
