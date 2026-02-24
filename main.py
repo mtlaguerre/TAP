@@ -34,7 +34,7 @@ if __name__ == '__main__':
     
     data_dir = 'data'
     
-    employer_dir = 'skillstorm'
+    employer_dir = 'testing'
     
     file_name = 'timeclocks'
     
@@ -141,6 +141,35 @@ if __name__ == '__main__':
                 return True
             else:
                 return False
+
+        # Tax Percentages (VT 2025)
+        hourlyRate = 15                 # update for user input
+        hoursPerPayPeriod = 40          # update for user input (default)
+        grossPay = hourlyRate * hoursPerPayPeriod
+        payFreq = "Biweekly"            # update for user input
+        if payFreq == "Weekly":
+            payPeriodsPerYear = 52
+        elif payFreq == "Biweekly":
+            payPeriodsPerYear = 26
+            hoursPerPayPeriod *= 2
+        elif payFreq == "Monthly":
+            payPeriodsPerYear = 12
+            hoursPerPayPeriod *= 4
+
+        # Federal Income Tax Withholding
+        grossAnnualSalary = grossPay * payPeriodsPerYear
+        allowances = 0                  # update for user input
+        allowanceWithholding = allowances * 4300
+        adjustedAnnualIncome = grossAnnualSalary - allowanceWithholding
+        
+        # Apply federal tax brackets (2025)
+
+
+        VCC = 0.001     # Vermont Child Care EE
+        MED = 0.015     # Medicare
+        VTW = 0.028     # Vermont State W/H
+        FWT = 0.040     # Federal W/H
+        SSC = 0.062     # Social Security
         
         # declare constant missing clock in message
         MISSING_CI_MSG = "You're not even on the clock..."
@@ -226,9 +255,7 @@ if __name__ == '__main__':
                 message = CO_SUCCESS_MSG
             elif not checkPunch(1):     # if not clocked in
                 message = MISSING_CI_MSG
-            elif not checkPunch(2):     # if lunch not began
-                message = MISSING_LI_MSG
-            elif not checkPunch(3):     # if lunch not ended
+            elif checkPunch(2) and not checkPunch(3):     # if lunch began and not ended
                 message = MISSING_LO_MSG
             elif checkPunch(4):         # if already clocked out
                 message = CO_EXISTS_MSG
