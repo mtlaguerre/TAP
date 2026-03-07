@@ -1,8 +1,7 @@
 '''
-    TimeAndPay
-    
-    Track hours on the clock with your own clocking machine.
-    Track expected net pay each pay period too!
+    TAP - Time And Pay
+
+    A time-tracking & payroll automation system for your personal needs.
 '''
 import os
 import platform
@@ -10,250 +9,283 @@ import pandas as pd
 import datetime as dt
 
 if __name__ == '__main__':
-    
+
+    # file extension
+    fileExt = ".csv"
+   
+    # default directory delimiter for majority operating systems
+    dirDelim = '/'
+
+    # file delimiter separating the data
+    fileDelim = ','
+
     # if mobile, enable notifications
-    mobile = ['iOS', 'iPadOS', 'Android']  # mobile systems    
+    mobile = ['iOS', 'iPadOS', 'Android'] # mobile systems
     if platform.system() in mobile:
         import sys
         import notifications
-        
-        dir_delim = '/'
         
         # use notifications to display messages
         def notify(message):
             notifications.send_notification(notifications.Notification(message))
     else:
-        dir_delim = '\\' if platform.system() == "Windows" else '/'
-        
+        dirDelim = '\\' if platform.system() == "Windows" else '/'
+
         def notify(message):
             print(message)
-    
-    # file directory structure
-    parent_dir = os.path.abspath(__file__)  # full path to current file
-    parent_dir = os.path.dirname(parent_dir)   # parent directory of current file
-    
-    data_dir = 'data'
-    
-    employer_dir = 'skillstorm'
-    
-    file_name = 'timeclocks'
-    
-    file_extension = '.csv'
-    
-    file_delim = ','
 
-    file_full = file_name + file_extension
-    
-    # build path
-    path = os.path.join(parent_dir, data_dir, employer_dir, file_full)
-
-    directory_name = f"{data_dir}{dir_delim}{employer_dir}"
-    
-    try:
-        os.makedirs(os.path.join(parent_dir, directory_name), exist_ok=True)
+    def validateDirectory(_headDir, _dirPath, _filename):
         
-        with open(f"{directory_name}{dir_delim}{file_full}", 'x', encoding='utf-8') as file:    # x mode safely creates new file, abort if already exists
-            file.write("date,weekday,clocked_in,lunch_in,lunch_out,clocked_out\n")
+        try:
+            os.makedirs(os.path.join(_headDir, _dirPath), exist_ok=True)
 
-    except FileExistsError:
-        pass
+            with open(f"{_dirPath}{dirDelim}{_filename}", 'x', encoding='utf-8') as f:      # x mode safely creates new file, abort if already exists
+                f.write("date,weekday,clocked_in,started_lunch,ended_lunch,clocked_out\n")
+        
+        except PermissionError:
+            notify(f"Permission denied: Unabled to create '{_dirPath}'.")
 
-    except PermissionError:
-        notify(f"Permission denied: Unable to create '{directory_name}'.")
+        except Exception as e:
+            notify(f"An error occured: {e}")
 
-    except Exception as e:
-        notify(f"An error occured: {e}")
+    '''
+        Folder Structure Setup:
+        _headDir
+            |
+            _timesheetDir
+                |
+                _filename + _fileExt
 
-    # section csv data using pandas
+        _file Delim = symbol separating data in file
+    '''
+    def setupStructure(_headDir, _timesheetDir, _filename):
+
+        currFile = os.path.abspath(__file__) # full path to current file
+        parentDir = os.path.dirname(currFile) # parent directory of current file
+       
+        # full file name
+        file = _filename + fileExt
+
+        # build path
+        bPath = os.path.join(parentDir, _headDir, _timesheetDir, file)
+
+        # relative directory path
+        relativeDir = f"{_headDir}{dirDelim}{_timesheetDir}"
+
+        # build path if missing
+        validateDirectory(parentDir, relativeDir, file)
+
+        return bPath  # future use (pandas)
+
+
+
+    # Path Setup
+    path = setupStructure('data', 'genspark', 'timeclocks')
+
+    '''
+        Section csv data using Pandas
+        data being split:
+
+        date > weekday > clocked_in > started_lunch > ended_lunch > clocked_out
+    '''
+    # store csv into a dataframe (secitoned)
     data = pd.read_csv(path)
 
-    # time variables
-    date_delim = '.'
+    ''' Time Variables '''
+    dateDelim = '.'
     present = dt.datetime.now()
-    today = str(present.strftime('%y')) + date_delim + (str(present.month) if present.month >= 10 else '0' + str(present.month)) + date_delim + (str(present.day) if present.day >= 10 else '0' + str(present.day))
+    
+    # days
+    today = str(present.strftime('%y')) + dateDelim + (str(present.month) if present.month >= 10 else '0' + str(present.month)) + dateDelim + (str(present.day) if present.day >= 10 else '0' + str(present.day))
+    def daysAgo(_numOfDays):
+        dateOfDay = str(present - dt.timedelta(days=_numOfDays)).split('-')
+        dateOfDay = dateOfDay[0][2:] + dateDelim + dateOfDay[1] + dateDelim + dateOfDay[2][:2]
 
-    def daysAgo(numOfDays):
-        date_of_day = str(present - dt.timedelta(days=numOfDays)).split('-')
-        date_of_day = date_of_day[0][2:] + date_delim + date_of_day[1] + date_delim + date_of_day[2][:2]
-
-        return date_of_day
-
+        return dateOfDay
     yesterday = daysAgo(1)
-
+    
+    # hours & minutes
     hour = str(present.hour)
     minute = str(present.minute) if present.minute >= 10 else '0' + str(present.minute)
 
-    # array of weekdays
-    weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+    WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
-    # timeclock dictionary
+    # timeclock dictionary 
     timeclock = {}
+
+    # weeks
     weeks = []
-    curr_week = 0
-        
-    # define clock punches
-    def clockPunch():
-        
+
+    '''
+        Timepunch function
+
+        writes the current time to the end of the file
+    '''
+    def timepunch():
+
         # open file in read-write binary mode
-        with open(path, 'r+b') as file:
+        with open(path, 'r+b') as f:
 
-            file.seek(-1, 2)            # seek to the last byte
+            f.seek(-1, 2)           # seek to the last byte
 
-            if file.read(1) == b'\n':
-                file.seek(-1, 2)        # go back one byte
-                file.truncate()         # remove the newline
+            if f.read(1) == b'\n':
+                f.seek(-1, 2)       # go back one byte
+                f.truncate()        # remove the newline
 
             # write current hour & minute
-            file.write(f"{hour}{minute}".encode('utf-8'))
-        
-    def printChar(char):
-        
+            f.write(f"{hour}{minute}".encode("utf-8"))
+
+    '''
+        PrintChar function
+
+        writes a character to the end of the file
+    '''
+    def printChar(_char):
+
         # open file in append mode
-        with open(path, 'a') as file:
-            file.write(char)  # write character
-        
+        with open(path, 'a') as f:
+            f.write(_char)           # write character
+
+
     # prompt
-    action = input("Clock in(ci), Lunch in(li), Lunch out(lo), Clock out(co), Info(i), Pay(p): ") if platform.system() not in mobile else sys.argv[1]
+    action = input ("Clock In(ci), Clock Out(co), Start Lunch(sl), End Lunch(el), Info(i): ") if platform.system() not in mobile else sys.argv[1]
 
-    if action == "ci" or action == "li" or action == "lo" or action == "co" or action == "i" or action == "p":
+    options = ["ci", "co", "sl", "el", "i"]
 
-        # empty data value
-        null_val = 'null'
+    # if valid selection, load timeclock (faster start)
+    if action in options:
 
-        # load timeclock data into array
+        # emtpy data value
+        nullVal = "null"
+
+        # store csv data into an array
         for rows in range(data.shape[0]):
-
+            
             df = data.iloc[rows]    # store current row in df
 
-            times = [df['clocked_in'], df['lunch_in'], df['lunch_out'], df['clocked_out']]
-            timeclock[df['date']] = [null_val, null_val, null_val, null_val]
+            punches = [df['clocked_in'], df['started_lunch'], df['ended_lunch'], df['clocked_out']]
+            timeclock[df['date']] = [nullVal, nullVal, nullVal, nullVal]    # fill current timepunch slots with "null" (creates the slot)
 
-            for  i in range (data.shape[1] - 2):
-                timeclock[df['date']][i] = str(times[i]) if not pd.isna(times[i]) else null_val
-                #print(timeclock['date'][i])
+            for i in range(data.shape[1] - 2):
+                timeclock[df['date']][i] = str(punches[i]) if not pd.isna(punches[i]) else nullVal  # populate array with csv values, otherwise "null"
 
-        # if today not in timeclock
+        # if today not in timeclock array
         if today not in timeclock:
-            timeclock[today] = [null_val, null_val, null_val, null_val]
+            timeclock[today] = [nullVal, nullVal, nullVal, nullVal]     # create row for today with no timepunches ("null" values)
 
-        def checkPunch(punch):
-            if timeclock[today][punch - 1] != null_val:
-                return True
+        '''
+            CheckPunchExists
+
+            checks if selected puch is a duplicate
+            1 = clocked_in
+            2 = started_lunch
+            3 = ended_lunch
+            4 = clocked_out
+        '''
+        def checkPunchExists(_punch):
+            res = 0
+            if timeclock[today][_punch - 1] != nullVal:
+                res = True
             else:
-                return False
-        
-        # declare constant missing clock in message
-        MISSING_CI_MSG = "You're not even on the clock..."
-        MISSING_LI_MSG = "You must begin your lunch to end your lunch."
-        MISSING_LO_MSG = "End your lunch first."
-        #MISSING_CO_MSG = "You haven't ended your previous shift."
+                res = False
 
-        # declare constant clock in messages (indicators/notifications)
-        CI_SUCCESS_MSG = "[Welcome message]"
-        CI_EXISTS_MSG = "[Duplicate clock in message]"
-        CI_GENERIC_MSG = "Clock in failed to unknown reasons. Investigate."
+            return res
 
-        # declare constant lunch in messages
-        LI_SUCCESS_MSG = "[Lunch in success messge]"
-        LI_EXISTS_MSG = "Today's lunch was at " + str(timeclock[today][1]) + ", remember?"
-        LI_GENERIC_MSG = "Lunch in failed to unknown reasons. Investigate."
+        ''' Business Logic '''
 
-        # declare constant lunch out messages
-        LO_SUCCESS_MSG = "The developing continues :)"
-        LO_EXISTS_MSG = "Lunch can't end twice. Focus up on the project."
-        LO_GENERIC_MSG = "Lunch out failed to unknown reasons. Investigate."
+        DUPLICATE_PUNCH_ERROR_MSG = "FAILED: Duplicate Punch"
 
-        # declare constant clock out messages
-        CO_SUCCESS_MSG = "Nice work. Let's develop some more tomorrow!"
-        CO_EXISTS_MSG = "You're already off the clock. Seems you're tired, rest up."
-        CO_GENERIC_MSG = "Clock out failed to unknown reasons. Investigate."
-        
-        if action == 'ci':      # clock in
+        if action == 'ci':      # clocking in
 
-            # if clocked in == null
-            if not checkPunch(1):   # if not clocked in
+            # if not yet clocked in
+            if not checkPunchExists(1):
 
                 # open file in append mode
-                with open(path, 'a') as file:
-                     
+                with open(path, 'a') as f:
+
                     # add new day info
-                    file.write(f"\"{today}\"{file_delim}\'{weekdays[present.weekday()]}\'{file_delim}")
+                    f.write(f"\"{today}\"{fileDelim}\'{WEEKDAYS[present.weekday()]}\'{fileDelim}")       # "Date",'DAY',
 
-                clockPunch()
-                printChar(file_delim)
-                message = CI_SUCCESS_MSG
-            elif checkPunch(1):     # if clocked in (maybe check if clocked out of last shift?)
-                message = CI_EXISTS_MSG
-            else:
-                message = CI_GENERIC_MSG
+                timepunch()             # HH:MM
+                printChar(fileDelim)
 
-            notify(message)
-
-        elif action == 'li':    # begin lunch
-            if checkPunch(1) and not checkPunch(2): # if clocked in and lunch not began
-                clockPunch()
-                printChar(file_delim)
-                message = LI_SUCCESS_MSG 
-            elif not checkPunch(1) or checkPunch(4): # if not clocked in or already clocked out
-                message = MISSING_CI_MSG
-            elif checkPunch(2):         # if already began lunch
-                message = LI_EXISTS_MSG
-            else:                       # any uncovered fail
-                message = LI_GENERIC_MSG
+                message = "SUCCESSFUL: Clocked In"
+            else:   # already clocked in
+                message = DUPLICATE_PUNCH_ERROR_MSG
 
             notify(message)
 
-        elif action == 'lo':    # end lunch
-            if checkPunch(1) and checkPunch(2) and not checkPunch(3):   # if clocked in and lunch began and lunch not ended
-                clockPunch()
-                printChar(file_delim)
-                message = LO_SUCCESS_MSG
-            elif not checkPunch(1):     # if not clocked in
-                message = MISSING_CI_MSG 
-            elif not checkPunch(2):     # if lunch not began
-                message = MISSING_LI_MSG
-            elif checkPunch(3):         # if already ended lunch
-                message = LO_EXISTS_MSG
-            else:                       # any uncovered fail
-                message = LO_GENERIC_MSG
-
-            notify(message)
+        elif action == 'co':      # clocking out
             
-        elif action == 'co':    # clock out
-            if checkPunch(1) and checkPunch(2) and checkPunch(3) and not checkPunch(4):     # if clocked in and began lunch and ended lunch and not clocked out
-                clockPunch()
-                printChar('\n')
-                message = CO_SUCCESS_MSG
-            elif not checkPunch(1):     # if not clocked in
-                message = MISSING_CI_MSG
-            elif not checkPunch(2):     # if lunch not began
-                message = MISSING_LI_MSG
-            elif not checkPunch(3):     # if lunch not ended
-                message = MISSING_LO_MSG
-            elif checkPunch(4):         # if already clocked out
-                message = CO_EXISTS_MSG
-            else:                       # any uncovered fail
-                message = CO_GENERIC_MSG 
+            # if clocked in AND lunch ended AND NOT clocked out
+            if checkPunchExists(1) and checkPunchExists(3) and not checkPunchExists(4):
+
+                timepunch()
+                printChar('\n') # end day
+
+                message = "SUCCESSFUL: Clocked Out"
+            # if clocked in AND lunch NOT yet started AND NOT clocked out
+            elif checkPunchExists(1) and not checkPunchExists(2) and not checkPunchExists(4):
+
+                printChar(fileDelim)    # skip start lunch
+                printChar(fileDelim)    # skip end lunch
+
+                timepunch()
+                printChar('\n')     # end day
+
+                message = "SUCCESSFUL: Clocked Out"
+            # if NOT yet clocked in
+            elif not checkPunchExists(1):
+                message = "FAILED: Missing \"Clock In\""
+            # if lunch started AND lunch NOT ended
+            elif checkPunchExists(2) and not checkPunchExists(3):
+                message = "FAILED: Missing \"Ended Lunch\""
+            # if already clocked out
+            elif checkPunchExists(4):
+                message = DUPLICATE_PUNCH_ERROR_MSG
 
             notify(message)
 
-        elif action == 'i':     # info
-            info_type = input("Generic(g) or Search(s): ")
+        elif action == 'sl':
 
-            if info_type == 'g':
-                # do something
-                notify("Gathering generic info...")
-            elif info_type == 's':
-                # do something
-                notify("Calculating searched info...")
-            else:
-                # error handling
-                notify("Somthing went wrong... :(")
-            # do sumn
-        elif action == 'p':
-            # do things
-            notify("Pay")
+            # if clocked in AND lunch NOT yet started
+            if checkPunchExists(1) and not checkPunchExists(2):
 
-    else:
-        # handle error message
-        notify("Yup, you messed something up buddy.")
+                timepunch()
+                printChar(fileDelim)
+
+                message = "SUCCESSFUL: Started Lunch"
+            # if NOT yet clocked in
+            elif not checkPunchExists(1):
+                message = "FAILED: Missing \"Clock In\""
+            # if lunch already started
+            elif checkPunchExists(2):
+                message = DUPLICATE_PUNCH_ERROR_MSG
+            # if clocked out
+            elif checkPUnchExists(4):
+                message = "FAILED: Current Status - Clocked Out"
+            
+            notify(message)
+
+        elif action == 'el':
+
+            # if clocked in AND started lunch AND lunch NOT yet ended
+            if checkPunchExists(1) and checkPunchExists(2) and not checkPunchExists(3):
+
+                timepunch()
+                printChar(fileDelim)
+
+                message = "SUCCESSFUL: Ended Lunch"
+            # if NOT yet clocked in
+            elif not checkPunchExists(1):
+                message = "FAILED: Missing \"Clock In\""
+            # if clocked in AND lunch NOT yet started
+            elif not checkPunchExists(2):
+                message = "FAILED: Missing \"Started Lunch\""
+            # if clocked out
+            elif checkPunchExists(4):
+                message = "FAILED: Current Status - Clocked Out"
+
+            notify(message)
+
+
