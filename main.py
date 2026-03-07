@@ -41,6 +41,9 @@ if __name__ == '__main__':
 
             with open(f"{_dirPath}{dirDelim}{_filename}", 'x', encoding='utf-8') as f:      # x mode safely creates new file, abort if already exists
                 f.write("date,weekday,clocked_in,started_lunch,ended_lunch,clocked_out\n")
+
+        except FileExistsError:
+            pass
         
         except PermissionError:
             notify(f"Permission denied: Unabled to create '{_dirPath}'.")
@@ -76,7 +79,6 @@ if __name__ == '__main__':
         validateDirectory(parentDir, relativeDir, file)
 
         return bPath  # future use (pandas)
-
 
 
     # Path Setup
@@ -287,5 +289,3 @@ if __name__ == '__main__':
                 message = "FAILED: Current Status - Clocked Out"
 
             notify(message)
-
-
